@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Lissajous Figure Generator</title>
+<style>
+  body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+  }
+  h1 {
+    margin-top: 0;
+  }
+  #controls {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px 5px;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  label {
+    justify-self: end;
+  }
+  input[type="range"] {
+    width: 150px;
+  }
+  input[type="number"] {
+    width: 60px;
+  }
+  canvas {
+    border: 1px solid black;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .control-group {
+    display: contents; /* Allows grid layout to apply to children */
+  }
+  .control-group label {
+    margin-right: 5px;
+  }
+  .control-group input {
+    margin-right: 10px;
+  }
+  .value-display {
+    min-width: 30px;
+    text-align: left;
+  }
+</style>
+</head>
+<body>
+
+<h1>Lissajous Figure Generator</h1>
+
+<div id="controls">
+  <div class="control-group">
+    <label for="aFreq">Frequency A (ω<sub>a</sub>):</label>
+    <input type="range" id="aFreq" name="aFreq" min="1" max="10" value="3" step="0.1">
+    <span id="aFreqVal" class="value-display">3</span>
+  </div>
+
+  <div class="control-group">
+    <label for="bFreq">Frequency B (ω<sub>b</sub>):</label>
+    <input type="range" id="bFreq" name="bFreq" min="1" max="10" value="2" step="0.1">
+    <span id="bFreqVal" class="value-display">2</span>
+  </div>
+
+  <div class="control-group">
+    <label for="phase">Phase (δ):</label>
+    <input type="range" id="phase" name="phase" min="0" max="360" value="90" step="1">
+    <span id="phaseVal" class="value-display">90</span>°
+  </div>
+
+  <div class="control-group">
+    <label for="amplitudeX">Amplitude X (A):</label>
+    <input type="range" id="amplitudeX" name="amplitudeX" min="50" max="200" value="150" step="1">
+    <span id="amplitudeXVal" class="value-display">150</span>
+  </div>
+
+  <div class="control-group">
+    <label for="amplitudeY">Amplitude Y (B):</label>
+    <input type="range" id="amplitudeY" name="amplitudeY" min="50" max="200" value="150" step="1">
+    <span id="amplitudeYVal" class="value-display">150</span>
+  </div>
+
+  <div class="control-group">
+    <label for="speed">Animation Speed:</label>
+    <input type="range" id="speed" name="speed" min="0.1" max="2" value="0.5" step="0.1">
+    <span id="speedVal" class="value-display">0.5</span>
+  </div>
+
+  <div class="control-group">
+    <label for="lineWidth">Line Width:</label>
+    <input type="range" id="lineWidth" name="lineWidth" min="1" max="10" value="2" step="0.5">
+    <span id="lineWidthVal" class="value-display">2</span>
+  </div>
+
+   <div class="control-group">
+    <label for="lineColor">Line Color:</label>
+    <input type="color" id="lineColor" name="lineColor" value="#FF0000">
+    <span id="lineColorVal" class="value-display"></span>
+  </div>
+</div>
+
+<canvas id="lissajousCanvas" width="400" height="400"></canvas>
+
+<script>
+  const canvas = document.getElementById('lissajousCanvas');
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  let t = 0; // Time parameter for animation
+
+  // --- Control Elements ---
+  const aFreqSlider = document.getElementById('aFreq');
+  const bFreqSlider = document.getElementById('bFreq');
+  const phaseSlider = document.getElementById('phase');
+  const amplitudeXSlider = document.getElementById('amplitudeX');
+  const amplitudeYSlider = document.getElementById('amplitudeY');
+  const speedSlider = document.getElementById('speed');
+  const lineWidthSlider = document.getElementById('lineWidth');
+  const lineColorPicker = document.getElementById('lineColor');
+
+  // --- Value Displays ---
+  const aFreqVal = document.getElementById('aFreqVal');
+  const bFreqVal = document.getElementById('bFreqVal');
+  const phaseVal = document.getElementById('phaseVal');
+  const amplitudeXVal = document.getElementById('amplitudeXVal');
+  const amplitudeYVal = document.getElementById('amplitudeYVal');
+  const speedVal = document.getElementById('speedVal');
+  const lineWidthVal = document.getElementById('lineWidthVal');
+  const lineColorVal = document.getElementById('lineColorVal'); // Not strictly needed for color picker but good for consistency
+
+  // --- Initial Values ---
+  let a = parseFloat(aFreqSlider.value); // Frequency for X
+  let b = parseFloat(bFreqSlider.value); // Frequency for Y
+  let phase = parseFloat(phaseSlider.value) * Math.PI / 180; // Phase difference in radians
+  let amplitudeX = parseFloat(amplitudeXSlider.value);
+  let amplitudeY = parseFloat(amplitudeYSlider.value);
+  let animationSpeed = parseFloat(speedSlider.value);
+  let currentLineWidth = parseFloat(lineWidthSlider.value);
+  let currentLineColor = lineColorPicker.value;
+
+  // --- Update Functions for Controls ---
+  function updateValues() {
+    a = parseFloat(aFreqSlider.value);
+    b = parseFloat(bFreqSlider.value);
+    phase = parseFloat(phaseSlider.value) * Math.PI / 180;
+    amplitudeX = parseFloat(amplitudeXSlider.value);
+    amplitudeY = parseFloat(amplitudeYSlider.value);
+    animationSpeed = parseFloat(speedSlider.value);
+    currentLineWidth = parseFloat(lineWidthSlider.value);
+    currentLineColor = lineColorPicker.value;
+
+    aFreqVal.textContent = a.toFixed(1);
+    bFreqVal.textContent = b.toFixed(1);
+    phaseVal.textContent = phaseSlider.value; // Display in degrees
+    amplitudeXVal.textContent = amplitudeX.toFixed(0);
+    amplitudeYVal.textContent = amplitudeY.toFixed(0);
+    speedVal.textContent = animationSpeed.toFixed(1);
+    lineWidthVal.textContent = currentLineWidth.toFixed(1);
+    // lineColorVal.textContent = currentLineColor; // Could display hex if desired
+    t = 0; // Reset time on parameter change for a cleaner visual update
+  }
+
+  // --- Event Listeners for Controls ---
+  aFreqSlider.addEventListener('input', updateValues);
+  bFreqSlider.addEventListener('input', updateValues);
+  phaseSlider.addEventListener('input', updateValues);
+  amplitudeXSlider.addEventListener('input', updateValues);
+  amplitudeYSlider.addEventListener('input', updateValues);
+  speedSlider.addEventListener('input', updateValues);
+  lineWidthSlider.addEventListener('input', updateValues);
+  lineColorPicker.addEventListener('input', updateValues);
+
+
+  function drawLissajous() {
+    ctx.clearRect(0, 0, width, height); // Clear canvas
+    ctx.beginPath();
+    ctx.lineWidth = currentLineWidth;
+    ctx.strokeStyle = currentLineColor;
+
+    const pointsToDraw = 500; // Number of points to define the curve
+    const timeIncrement = (2 * Math.PI) / pointsToDraw;
+
+    for (let i = 0; i <= pointsToDraw; i++) {
+      const currentTime = i * timeIncrement;
+      // Parametric equations for Lissajous curve:
+      // x(t) = A * sin(a*t + δ)
+      // y(t) = B * sin(b*t)
+      // We add 't' (global animation time) to one of the frequencies to make it animate
+      const x = centerX + amplitudeX * Math.sin(a * currentTime + phase + t * animationSpeed);
+      const y = centerY + amplitudeY * Math.sin(b * currentTime + t * animationSpeed);
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+  }
+
+  function animate() {
+    drawLissajous();
+    t += 0.01; // Increment time for animation effect. The speed is controlled by animationSpeed inside drawLissajous.
+    requestAnimationFrame(animate); // Loop the animation
+  }
+
+  // Initial setup
+  updateValues(); // Set initial display values
+  animate();    // Start the animation
+</script>
+
+</body>
+</html>

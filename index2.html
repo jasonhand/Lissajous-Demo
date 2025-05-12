@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lissajous Figure Animator</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        h1 {
+            margin-bottom: 20px;
+            color: #1a73e8;
+        }
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 700px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="range"], input[type="number"] {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        .output-value {
+            font-size: 0.9em;
+            color: #555;
+            margin-left: 5px;
+        }
+        footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lissajous Figure Animator</h1>
+
+    <div id="controls">
+        <div class="control-group">
+            <label for="freqX">Frequency X (a): <span id="freqXValue" class="output-value">3</span></label>
+            <input type="range" id="freqX" name="freqX" min="1" max="10" value="3" step="0.1">
+        </div>
+        <div class="control-group">
+            <label for="freqY">Frequency Y (b): <span id="freqYValue" class="output-value">2</span></label>
+            <input type="range" id="freqY" name="freqY" min="1" max="10" value="2" step="0.1">
+        </div>
+        <div class="control-group">
+            <label for="phase">Phase (δ): <span id="phaseValue" class="output-value">0.5</span>π</label>
+            <input type="range" id="phase" name="phase" min="0" max="2" value="0.5" step="0.01">
+        </div>
+        <div class="control-group">
+            <label for="amplitudeX">Amplitude X (A): <span id="amplitudeXValue" class="output-value">100</span></label>
+            <input type="range" id="amplitudeX" name="amplitudeX" min="10" max="200" value="100" step="1">
+        </div>
+        <div class="control-group">
+            <label for="amplitudeY">Amplitude Y (B): <span id="amplitudeYValue" class="output-value">100</span></label>
+            <input type="range" id="amplitudeY" name="amplitudeY" min="10" max="200" value="100" step="1">
+        </div>
+        <div class="control-group">
+            <label for="speed">Animation Speed: <span id="speedValue" class="output-value">1</span></label>
+            <input type="range" id="speed" name="speed" min="0.1" max="5" value="1" step="0.1">
+        </div>
+         <div class="control-group">
+            <label for="lineWidth">Line Width: <span id="lineWidthValue" class="output-value">2</span>px</label>
+            <input type="range" id="lineWidth" name="lineWidth" min="1" max="10" value="2" step="0.5">
+        </div>
+        <div class="control-group">
+            <label for="lineColor">Line Color:</label>
+            <input type="color" id="lineColor" name="lineColor" value="#1a73e8">
+        </div>
+    </div>
+
+    <canvas id="lissajousCanvas" width="500" height="500"></canvas>
+
+    <footer>
+        <p>Adjust the parameters to see different Lissajous patterns.</p>
+        <p>Equations: $x(t) = A \sin(at + \delta)$, $y(t) = B \sin(bt)$</p>
+    </footer>
+
+    <script>
+        const canvas = document.getElementById('lissajousCanvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Control elements
+        const freqXInput = document.getElementById('freqX');
+        const freqYInput = document.getElementById('freqY');
+        const phaseInput = document.getElementById('phase');
+        const amplitudeXInput = document.getElementById('amplitudeX');
+        const amplitudeYInput = document.getElementById('amplitudeY');
+        const speedInput = document.getElementById('speed');
+        const lineWidthInput = document.getElementById('lineWidth');
+        const lineColorInput = document.getElementById('lineColor');
+
+        // Output value spans
+        const freqXValueSpan = document.getElementById('freqXValue');
+        const freqYValueSpan = document.getElementById('freqYValue');
+        const phaseValueSpan = document.getElementById('phaseValue');
+        const amplitudeXValueSpan = document.getElementById('amplitudeXValue');
+        const amplitudeYValueSpan = document.getElementById('amplitudeYValue');
+        const speedValueSpan = document.getElementById('speedValue');
+        const lineWidthValueSpan = document.getElementById('lineWidthValue');
+
+        let t = 0; // Time variable
+
+        function getValues() {
+            return {
+                a: parseFloat(freqXInput.value),
+                b: parseFloat(freqYInput.value),
+                delta: parseFloat(phaseInput.value) * Math.PI, // Phase in radians
+                A: parseFloat(amplitudeXInput.value),
+                B: parseFloat(amplitudeYInput.value),
+                speed: parseFloat(speedInput.value),
+                lineWidth: parseFloat(lineWidthInput.value),
+                lineColor: lineColorInput.value
+            };
+        }
+
+        function updateValueSpans() {
+            const values = getValues();
+            freqXValueSpan.textContent = values.a.toFixed(1);
+            freqYValueSpan.textContent = values.b.toFixed(1);
+            phaseValueSpan.textContent = (values.delta / Math.PI).toFixed(2);
+            amplitudeXValueSpan.textContent = values.A.toFixed(0);
+            amplitudeYValueSpan.textContent = values.B.toFixed(0);
+            speedValueSpan.textContent = values.speed.toFixed(1);
+            lineWidthValueSpan.textContent = values.lineWidth.toFixed(1);
+        }
+
+        function drawLissajous() {
+            const params = getValues();
+            ctx.clearRect(0, 0, width, height); // Clear canvas
+
+            ctx.beginPath();
+            ctx.lineWidth = params.lineWidth;
+            ctx.strokeStyle = params.lineColor;
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const points = 500; // Number of points to define the curve
+
+            for (let i = 0; i <= points; i++) {
+                const angle = (Math.PI * 2 * i) / points;
+                const x = centerX + params.A * Math.sin(params.a * angle + params.delta);
+                const y = centerY + params.B * Math.sin(params.b * angle);
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+        }
+
+        function animate() {
+            const params = getValues();
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.beginPath();
+            ctx.lineWidth = params.lineWidth;
+            ctx.strokeStyle = params.lineColor;
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // For animation, we trace the path over time
+            // To make it smoother and ensure the shape is "complete" more quickly,
+            // we draw many points in each frame, but slightly offset by 't'
+            const traceLength = Math.PI * 2 * Math.max(1/params.a, 1/params.b) * 2; // Heuristic for a good trace length
+            const numPointsInTrace = 500;
+
+
+            for (let i = 0; i <= numPointsInTrace; i++) {
+                const timeOffset = (i / numPointsInTrace) * traceLength;
+                const currentTime = t + timeOffset;
+
+                const x = centerX + params.A * Math.sin(params.a * currentTime + params.delta);
+                const y = centerY + params.B * Math.sin(params.b * currentTime);
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+
+            t += 0.01 * params.speed; // Increment time for animation
+
+            requestAnimationFrame(animate);
+        }
+
+        // Initial draw and setup
+        updateValueSpans();
+        animate(); // Start the animation loop
+
+        // Event listeners for controls
+        [freqXInput, freqYInput, phaseInput, amplitudeXInput, amplitudeYInput, speedInput, lineWidthInput, lineColorInput].forEach(input => {
+            input.addEventListener('input', () => {
+                updateValueSpans();
+                // No need to call drawLissajous separately, animate loop will pick up new values.
+                // If you prefer a static image on drag, uncomment drawLissajous() and comment out requestAnimationFrame in animate
+                // and call animate only once initially or on a "play" button.
+                // For this interactive demo, continuous animation on input change is often preferred.
+            });
+        });
+
+    </script>
+</body>
+</html>
